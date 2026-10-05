@@ -1,0 +1,259 @@
+<title>We're Not Done Yet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&display=swap">
+<style>
+  /* Layout: full-screen broadcast loop — fixed stage, timed scenes, persistent ticker + QR */
+  :root{
+    --bg:#070b0a;
+    --panel:#0d1411;
+    --ink:#f2f7f4;
+    --mut:#9db4aa;
+    --brand:#10b981;
+    --brand-deep:#0a8f63;
+    --brand-ink:#052e22;
+    --line:rgba(16,185,129,.18);
+    --display:"Archivo",-apple-system,"Helvetica Neue",Arial,sans-serif;
+    color-scheme:dark;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden}
+  body{font-family:var(--display);background:var(--bg);color:var(--ink)}
+
+  .stage{position:fixed;inset:0;background:var(--bg);overflow:hidden}
+
+  /* ambient drifting glow */
+  .glow{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;pointer-events:none}
+  .glow.a{width:60vw;height:60vw;background:radial-gradient(circle,rgba(16,185,129,.30),transparent 65%);
+    top:-30vw;right:-12vw;animation:driftA 26s ease-in-out infinite alternate}
+  .glow.b{width:46vw;height:46vw;background:radial-gradient(circle,rgba(16,185,129,.16),transparent 65%);
+    bottom:-24vw;left:-14vw;animation:driftB 34s ease-in-out infinite alternate}
+  @keyframes driftA{from{transform:translate(0,0) scale(1)}to{transform:translate(-9vw,7vh) scale(1.18)}}
+  @keyframes driftB{from{transform:translate(0,0) scale(1.1)}to{transform:translate(8vw,-6vh) scale(.95)}}
+
+  /* loop progress */
+  .progress{position:absolute;top:0;left:0;height:4px;width:100%;transform-origin:0 50%;
+    background:linear-gradient(90deg,var(--brand),var(--brand-deep));transform:scaleX(0);z-index:40}
+
+  /* persistent chrome */
+  .chrome-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
+    align-items:center;padding:3.2vmin 4vmin;z-index:30}
+  .mark{display:flex;align-items:center;gap:1.4vmin}
+  .tile{width:5vmin;height:5vmin;border-radius:1.2vmin;background:linear-gradient(160deg,#10b981,#0a8f63);
+    display:flex;align-items:center;justify-content:center;font-weight:900;font-size:2.8vmin;color:var(--brand-ink);
+    animation:breathe 4s ease-in-out infinite}
+  @keyframes breathe{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.45)}50%{box-shadow:0 0 0 1.6vmin rgba(16,185,129,0)}}
+  .wordmark{font-size:2.1vmin;font-weight:800;letter-spacing:.16em}
+  .badge{font-size:1.6vmin;font-weight:700;letter-spacing:.3em;color:var(--brand);border:1px solid var(--line);
+    border-radius:999px;padding:1.1vmin 2.4vmin;background:rgba(16,185,129,.07)}
+  .badge .dot{display:inline-block;width:1vmin;height:1vmin;border-radius:50%;background:var(--brand);
+    margin-right:1vmin;vertical-align:middle;animation:blink 1.6s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+  .eq{display:inline-flex;align-items:flex-end;gap:.45vmin;height:2vmin;margin-right:1.2vmin;vertical-align:middle}
+  .eq i{width:.7vmin;background:var(--brand);border-radius:.2vmin;animation:eq 1s ease-in-out infinite}
+  .eq i:nth-child(1){height:60%}.eq i:nth-child(2){height:100%;animation-delay:.2s}
+  .eq i:nth-child(3){height:75%;animation-delay:.45s}
+  @keyframes eq{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+
+  /* persistent corner QR */
+  .qr-corner{position:absolute;right:4vmin;bottom:9.5vmin;z-index:30;display:flex;flex-direction:column;
+    align-items:center;gap:1vmin;transition:opacity .6s ease}
+  .qr-corner .plate{background:#fff;border-radius:1.4vmin;padding:1.1vmin;box-shadow:0 1.2vmin 4vmin rgba(0,0,0,.55)}
+  .qr-corner .plate img,.qr-corner .plate canvas{display:block;width:12vmin;height:12vmin}
+  .qr-corner span{font-size:1.4vmin;font-weight:700;letter-spacing:.22em;color:var(--mut)}
+  .stage.on-end .qr-corner{opacity:0}
+
+  /* ticker */
+  .ticker{position:absolute;left:0;right:0;bottom:0;border-top:1px solid var(--line);
+    background:rgba(7,11,10,.82);overflow:hidden;white-space:nowrap;z-index:30;padding:1.8vmin 0}
+  .ticker .rail{display:inline-block;animation:marquee 36s linear infinite}
+  .ticker span{font-size:1.8vmin;font-weight:700;letter-spacing:.28em;color:var(--mut);padding:0 2.4vmin}
+  .ticker span.q{color:var(--brand)}
+  @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+  /* scenes */
+  .scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:0 8vmin 6vmin;opacity:0;visibility:hidden;transform:translateY(3vh) scale(.985);
+    transition:opacity .9s ease,transform .9s ease,visibility 0s linear .9s;z-index:10}
+  .scene.active{opacity:1;visibility:visible;transform:none;transition:opacity .9s ease,transform .9s ease}
+  .line{opacity:0;transform:translateY(2.4vh);
+    transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+  .scene.active .line{opacity:1;transform:none}
+  .scene.active .d1{transition-delay:.15s}.scene.active .d2{transition-delay:.75s}
+  .scene.active .d3{transition-delay:1.5s}.scene.active .d4{transition-delay:2.4s}
+
+  .eyebrow{font-size:2vmin;font-weight:800;letter-spacing:.34em;color:var(--brand);margin-bottom:3.4vmin}
+  h1{font-size:12.5vmin;line-height:.98;letter-spacing:-.02em;font-weight:900}
+  h1 em,.riddle em{font-style:normal;color:var(--brand)}
+  .riddle{font-size:7.6vmin;line-height:1.12;letter-spacing:-.015em;font-weight:900;max-width:82vw}
+  .sub{font-size:3vmin;color:var(--mut);margin-top:4vmin;font-weight:500}
+  .sub b{color:var(--ink)}
+  .stamp{margin-top:4.6vmin;font-size:2.1vmin;font-weight:800;letter-spacing:.3em;color:var(--brand);
+    border:1px solid var(--line);border-radius:999px;padding:1.6vmin 3.6vmin;background:rgba(16,185,129,.07)}
+  /* slam: oversized + tilted until its delay hits, then snaps down with overshoot */
+  .slam{transform:scale(1.6) rotate(-5deg);border-width:2px;
+    transition:opacity .45s ease,transform .55s cubic-bezier(.2,1.7,.4,1)}
+  .scene.active .slam{transform:scale(1) rotate(-2deg)}
+  .redact{display:inline-block;height:.78em;
+    background:linear-gradient(100deg,#0f3b2d,#1d5a44,#0f3b2d);background-size:220% 100%;
+    border-radius:.14em;vertical-align:baseline;animation:shimmer 2.6s linear infinite}
+  @keyframes shimmer{from{background-position:0 0}to{background-position:220% 0}}
+  .classified-list{display:flex;flex-direction:column;gap:2.2vmin;align-items:flex-start;text-align:left}
+  .classified-list .row{font-size:6.4vmin;font-weight:900;letter-spacing:.01em;display:flex;align-items:center;gap:2vmin}
+  .teasertag{font-size:2vmin;font-weight:800;letter-spacing:.34em;color:var(--mut);margin-bottom:3.4vmin}
+  .teasertag b{color:var(--brand)}
+
+  /* end card */
+  .endgrid{display:flex;align-items:center;gap:7vmin;text-align:left}
+  .endgrid h1{font-size:10.5vmin}
+  .qr-big{display:flex;flex-direction:column;align-items:center;gap:1.8vmin}
+  .qr-big .plate{background:#fff;border-radius:2.4vmin;padding:2.2vmin;
+    box-shadow:0 0 0 2px var(--line),0 2.4vmin 8vmin rgba(0,0,0,.6);animation:qrpulse 2.4s ease-in-out infinite}
+  @keyframes qrpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+  .qr-big .plate img,.qr-big .plate canvas{display:block;width:30vmin;height:30vmin}
+  .qr-big b{font-size:2.2vmin;font-weight:800;letter-spacing:.2em;color:var(--brand)}
+  .url{font-size:2.4vmin;letter-spacing:.18em;color:var(--mut);font-weight:700;margin-top:2.6vmin}
+
+  /* boot: first-shown scene renders instantly, complete at first paint */
+  .boot .scene,.boot .line{transition:none !important}
+
+  @media (prefers-reduced-motion:reduce){
+    .glow,.ticker .rail,.tile,.badge .dot,.qr-big .plate{animation:none}
+    .scene,.line{transition-duration:.01s}
+    .scene.active .line{animation-duration:.01s;animation-delay:0s}
+  }
+</style>
+
+<div class="stage" id="stage">
+  <div class="glow a"></div><div class="glow b"></div>
+  <div class="progress" id="progress"></div>
+
+  <div class="chrome-top">
+    <div class="mark"><div class="tile">W</div><div class="wordmark">WORKFLOW</div></div>
+    <div class="badge"><span class="eq"><i></i><i></i><i></i></span>SOMETHING'S COMING</div>
+  </div>
+
+  <!-- Scene 1: cold open -->
+  <section class="scene active" id="s1">
+    <div class="eyebrow line d1">FROM THE COMPANY BEHIND RADIO WORKFLOW</div>
+    <h1><span class="line d2" style="display:block">Something's</span>
+        <span class="line d3" style="display:block"><em>coming.</em></span></h1>
+  </section>
+
+  <!-- Scene 2: proof -->
+  <section class="scene" id="s2">
+    <div class="riddle"><span class="line d1" style="display:block">We built the fastest-growing</span>
+      <span class="line d2" style="display:block">product in radio.</span>
+      <span class="line d3" style="display:block"><em>We're not done yet.</em></span></div>
+    <div class="sub line d4">Every job in your building is about to get a <b>Buddy</b>.</div>
+  </section>
+
+  <!-- Scene 3: how secret is it? (the joke points at ourselves, not the room) -->
+  <section class="scene" id="s3">
+    <div class="teasertag line d1">HOW SECRET <b>IS IT?</b></div>
+    <div class="riddle"><span class="line d2" style="display:block">We haven't even told</span>
+      <span class="line d3" style="display:block"><em>our own sales team.</em></span></div>
+    <div class="stamp slam line d4">THEY FIND OUT WHEN YOU DO.</div>
+  </section>
+
+  <!-- Scene 4: the classified file -->
+  <section class="scene" id="s4">
+    <div class="teasertag line d1">STATUS: <b>IN DEVELOPMENT</b></div>
+    <div class="classified-list">
+      <div class="row line d2"><span class="redact" style="width:34vmin"></span>&nbsp;BUDDY</div>
+      <div class="row line d3"><span class="redact" style="width:22vmin"></span>&nbsp;BUDDY</div>
+      <div class="row line d3"><span class="redact" style="width:41vmin"></span>&nbsp;BUDDY</div>
+    </div>
+    <div class="stamp slam line d4">CLASSIFIED — UNTIL IT ISN'T.</div>
+  </section>
+
+  <!-- Scene 5: the lead-gen question -->
+  <section class="scene" id="s5">
+    <div class="teasertag line d1">QUESTION FOR <b>THE ROOM</b></div>
+    <div class="riddle"><span class="line d2" style="display:block">What's the one job in your</span>
+      <span class="line d3" style="display:block">building <em>nobody has time for?</em></span></div>
+    <div class="stamp slam line d4">TELL US. WE MIGHT ALREADY BE BUILDING ITS BUDDY.</div>
+  </section>
+
+  <!-- Scene 6: end card -->
+  <section class="scene" id="s6">
+    <div class="endgrid">
+      <div>
+        <h1 class="line d1">We're not<br>done <em>yet.</em></h1>
+        <div class="sub line d2">Get on the <b>Buddy List</b> — Buddies hear it first.</div>
+        <div class="url line d3" style="font-size:1.8vmin;letter-spacing:.08em">THE-BUDDY-LIST.FORMBUDDY.RADIOWORKFLOW.COM</div>
+      </div>
+      <div class="qr-big line d2">
+        <div class="plate" id="qrBig"></div>
+        <b>SCAN TO JOIN</b>
+      </div>
+    </div>
+  </section>
+
+  <div class="qr-corner">
+    <div class="plate" id="qrCorner"></div>
+    <span>SCAN ME</span>
+  </div>
+
+  <div class="ticker"><div class="rail" id="rail"></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  var LIST_URL = "https://the-buddy-list.formbuddy.radioworkflow.com/f/buddy-list";  // the live Form Buddy lead form
+
+  // QR codes (white plates stay hidden if the library can't load, e.g. offline)
+  try{
+    new QRCode(document.getElementById("qrCorner"), {text:LIST_URL, width:256, height:256,
+      colorDark:"#052e22", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M});
+    new QRCode(document.getElementById("qrBig"), {text:LIST_URL, width:512, height:512,
+      colorDark:"#052e22", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M});
+  }catch(e){
+    document.querySelectorAll(".qr-corner,.qr-big").forEach(function(n){n.style.display="none"});
+  }
+
+  // ticker: the refrain only — no product names, no pipeline hints
+  var refrain = ["EVERYONE NEEDS A BUDDY","WE'RE NOT DONE YET","GET ON THE BUDDY LIST",
+                 "BUDDIES HEAR IT FIRST","SCAN THE CODE TO JOIN"];
+  var seq = refrain.map(function(n){return "<span>"+n+"</span><span class='q'>·</span>"}).join("");
+  document.getElementById("rail").innerHTML = seq + seq; // doubled for the seamless -50% marquee
+
+  // 60-second scene timeline, looping forever
+  var scenes = [
+    {id:"s1", dur:7000},
+    {id:"s2", dur:10000},
+    {id:"s3", dur:10000},
+    {id:"s4", dur:10000},
+    {id:"s5", dur:10000},
+    {id:"s6", dur:13000}
+  ];
+  var total = scenes.reduce(function(a,s){return a+s.dur},0);
+  var stage = document.getElementById("stage");
+  var progress = document.getElementById("progress");
+  // ?scene=N jumps the loop to scene N (testing / grabbing stills)
+  var startAt = parseInt(new URLSearchParams(location.search).get("scene"), 10);
+  var i = (startAt >= 1 && startAt <= scenes.length) ? startAt - 1 : 0;
+  var loopStart = Date.now();
+  stage.classList.add("boot");
+  show(i);
+  void stage.offsetWidth;
+  requestAnimationFrame(function(){requestAnimationFrame(function(){stage.classList.remove("boot")})});
+
+  function show(idx){
+    scenes.forEach(function(s,k){
+      document.getElementById(s.id).classList.toggle("active", k===idx);
+    });
+    stage.classList.toggle("on-end", scenes[idx].id==="s6");
+  }
+  function next(){
+    i = (i+1) % scenes.length;
+    if(i===0) loopStart = Date.now();
+    show(i);
+    setTimeout(next, scenes[i].dur);
+  }
+  setTimeout(next, scenes[i].dur);
+
+  (function tick(){
+    var t = ((Date.now()-loopStart) % total) / total;
+    progress.style.transform = "scaleX("+t+")";
+    requestAnimationFrame(tick);
+  })();
+</script>
